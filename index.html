@@ -3,68 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SIVS Antonym Battle - Final Boss</title>
+    <title>SIVS Final Boss Battle</title>
     <style>
-        :root { --neon: #00ff41; --danger: #ff0044; --bg: #050505; }
+        :root { --neon: #00ff41; --danger: #ff0044; --bg: #050505; --success: #fff; }
         * { box-sizing: border-box; touch-action: manipulation; }
         body { background: var(--bg); color: var(--neon); font-family: 'Share Tech Mono', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
-        #ui-top { width: 100%; padding: 20px; display: flex; justify-content: space-between; z-index: 10; }
+        
+        /* UI 頂部血條 */
+        #ui-top { width: 100%; padding: 20px; display: flex; justify-content: space-between; z-index: 50; }
         .hp-container { width: 42%; }
-        .hp-label { font-size: 10px; margin-bottom: 5px; letter-spacing: 2px; }
-        .hp-bar { width: 100%; height: 10px; border: 1px solid #333; background: #111; position: relative; border-radius: 5px; overflow: hidden; }
+        .hp-bar { width: 100%; height: 12px; border: 1px solid #333; background: #111; position: relative; border-radius: 6px; overflow: hidden; }
         #player-hp-inner { width: 100%; height: 100%; background: var(--neon); transition: width 0.3s; box-shadow: 0 0 10px var(--neon); }
         #boss-hp-inner { width: 100%; height: 100%; background: var(--danger); transition: width 0.5s; box-shadow: 0 0 10px var(--danger); }
-        #game-view { position: relative; width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #ascii-canvas { font-family: 'Courier New', monospace; font-size: 9px; line-height: 8px; white-space: pre; z-index: 1; pointer-events: none; }
-        #quiz-box { position: absolute; text-align: center; z-index: 5; pointer-events: none; width: 80%; }
-        #target-word { font-size: 3.2rem; font-weight: bold; text-shadow: 0 0 20px var(--neon); margin: 0; }
-        #chinese-hint { font-size: 1.2rem; color: #aaa; margin: 5px 0; }
-        #hint-box { font-size: 1.2rem; color: #fff; letter-spacing: 5px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; border: 1px dashed var(--neon); }
-        #input-area { width: 100%; padding: 30px; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; z-index: 10; border-top: 1px solid #222; }
-        #user-input { background: transparent; border: none; border-bottom: 2px solid var(--neon); color: #fff; font-size: 1.8rem; text-align: center; outline: none; width: 100%; max-width: 400px; font-family: 'Share Tech Mono', monospace; }
-        #status-info { width: 100%; max-width: 400px; display: flex; justify-content: space-between; margin-top: 15px; font-size: 12px; color: #444; }
-        .glitch-shake { animation: shake 0.2s infinite; }
-        @keyframes shake { 0% { transform: translate(3px, 3px); } 50% { transform: translate(-3px, -3px); } 100% { transform: translate(0,0); } }
+
+        /* 遊戲主體區域 */
+        #game-view { position: relative; width: 100%; flex-grow: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #ascii-canvas { font-family: 'Courier New', monospace; font-size: 11px; line-height: 9px; white-space: pre; z-index: 1; transition: color 0.1s, transform 0.1s; }
+        
+        /* 特效層 */
+        #impact-overlay { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 100; opacity: 0; transition: opacity 0.1s; }
+
+        /* 題目顯示 */
+        #quiz-box { position: absolute; text-align: center; z-index: 60; pointer-events: none; width: 90%; }
+        #target-word { font-size: 4rem; font-weight: bold; text-shadow: 0 0 20px var(--neon); margin: 0; transition: transform 0.2s; }
+        #chinese-hint { font-size: 1.6rem; color: #aaa; margin: 10px 0; background: rgba(0,0,0,0.6); display: inline-block; padding: 2px 10px; }
+        #hint-box { font-size: 1.8rem; letter-spacing: 8px; color: #ffff00; font-weight: bold; text-shadow: 0 0 10px #000; }
+
+        /* 輸入區域 */
+        #input-area { width: 100%; padding: 30px; background: #000; z-index: 70; border-top: 1px solid #222; }
+        #user-input { background: transparent; border: none; border-bottom: 2px solid var(--neon); color: #fff; font-size: 2rem; text-align: center; outline: none; width: 100%; font-family: inherit; }
+
+        /* 動態動畫庫 */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        .hit-shake { animation: shake 0.3s; }
+        .attack-flash { transform: scale(1.2); color: var(--success); }
     </style>
 </head>
 <body>
 
+    <div id="impact-overlay"></div>
+
     <div id="ui-top">
-        <div class="hp-container"><div class="hp-label">SIVS_USER_SYNC</div><div class="hp-bar"><div id="player-hp-inner"></div></div></div>
-        <div class="hp-container" style="text-align: right;"><div class="hp-label">CORE_INTEGRITY</div><div class="hp-bar"><div id="boss-hp-inner"></div></div></div>
+        <div class="hp-container">
+            <div style="font-size:10px;">SIVS_USER</div>
+            <div class="hp-bar"><div id="player-hp-inner"></div></div>
+        </div>
+        <div class="hp-container" style="text-align: right;">
+            <div style="font-size:10px;">CORE_DECRYPTOR</div>
+            <div class="hp-bar"><div id="boss-hp-inner"></div></div>
+        </div>
     </div>
 
     <div id="game-view">
         <div id="quiz-box">
-            <h2 id="target-word">SYNCING...</h2>
+            <h2 id="target-word">SYNC...</h2>
             <div id="chinese-hint"></div>
-            <div id="hint-box">_ _ _ _ _</div>
+            <div id="hint-box"></div>
         </div>
         <pre id="ascii-canvas"></pre>
     </div>
 
     <div id="input-area">
         <input type="text" id="user-input" placeholder="DECODING..." autocomplete="off">
-        <div id="status-info">
-            <span>STRIKES: <span id="miss-count">0</span> / 5</span>
-            <span id="system-msg">SIVS OS V2.6</span>
-        </div>
     </div>
 
     <script>
         const canvas = document.getElementById('ascii-canvas');
         const playerHpBar = document.getElementById('player-hp-inner');
         const bossHpBar = document.getElementById('boss-hp-inner');
-        const missText = document.getElementById('miss-count');
         const inputField = document.getElementById('user-input');
         const wordDisplay = document.getElementById('target-word');
         const chineseDisplay = document.getElementById('chinese-hint');
         const hintDisplay = document.getElementById('hint-box');
-        const systemMsg = document.getElementById('system-msg');
+        const overlay = document.getElementById('impact-overlay');
+        const gameView = document.getElementById('game-view');
 
         let playerHP = 100, bossHP = 100, missCount = 0, A = 0, B = 0, isDead = false;
         let quizData = [];
         let currentIdx = 0;
+        let torusScale = 45; // 甜甜圈基礎大小
 
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNmCwd6XsS61vQlsYo_Un3pTO5KRDDRwgE8Z1t6F58wI6GI44TCXvAbUxdywL65Fy3GX8BzRpTuZFU/pub?gid=0&single=true&output=csv';
 
@@ -74,43 +99,52 @@
                 const csvText = await response.text();
                 const lines = csvText.split('\n').slice(1); 
                 quizData = lines.map(line => {
-                    const columns = line.split(',');
-                    if (columns.length >= 2) {
-                        return { 
-                            q: columns[0].trim().toLowerCase(), 
-                            a: columns[1].trim().toLowerCase(),
-                            qCH: columns[2] ? columns[2].trim() : "",
-                            aCH: columns[3] ? columns[3].trim() : ""
-                        };
-                    }
-                    return null;
-                }).filter(item => item !== null);
+                    const col = line.split(',');
+                    return { 
+                        q: col[0]?.trim().toLowerCase(), 
+                        a: col[1]?.trim().toLowerCase(), 
+                        qCH: col[2]?.trim(), 
+                        aCH: col[3]?.trim() 
+                    };
+                }).filter(i => i.q && i.a);
                 nextQuestion();
-            } catch (e) {
-                systemMsg.innerText = "OFFLINE MODE";
-                nextQuestion();
-            }
+            } catch (e) { console.error("CSV Load Error"); }
         }
 
-        // 3D Torus 渲染 (保持不變)
         function renderTorus() {
             if (isDead) return;
             let b = [], z = [];
-            let speed = 0.05 + (100 - bossHP) * 0.004;
+            let speed = 0.05 + (100 - bossHP) * 0.005;
             A += speed; B += speed * 0.5;
             let cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
+
             for (let k = 0; k < 1760; k++) { b[k] = k % 80 == 79 ? "\n" : " "; z[k] = 0; }
+            
             for (let j = 0; j < 6.28; j += 0.07) {
                 let ct = Math.cos(j), st = Math.sin(j);
                 for (let i = 0; i < 6.28; i += 0.02) {
                     let sp = Math.sin(i), cp = Math.cos(i);
-                    let h = ct + 2, D = 1 / (sp * h * sA + st * cA + 5), t = sp * h * cA - st * sA;
-                    let x = Math.floor(40 + 30 * D * (cp * h * cB - t * sB));
-                    let y = Math.floor(12 + 15 * D * (cp * h * sB + t * cB));
+                    let h = ct + 2, D = 1 / (sp * h * sA + st * cA + 4), t = sp * h * cA - st * sA;
+                    let x = Math.floor(40 + torusScale * D * (cp * h * cB - t * sB));
+                    let y = Math.floor(12 + (torusScale/2) * D * (cp * h * sB + t * cB));
                     let o = x + 80 * y, N = Math.floor(8 * ((st * sA - sp * ct * cA) * cB - sp * ct * sA - st * cA - cp * ct * sB));
-                    if (y < 22 && y >= 0 && x >= 0 && x < 79 && D > z[o]) { z[o] = D; b[o] = ".,-~:;=!*#$@"[N > 0 ? N : 0]; }
+                    if (y < 22 && y >= 0 && x >= 0 && x < 79 && D > z[o]) { 
+                        z[o] = D; 
+                        b[o] = ".,-~:;=!*#$@"[N > 0 ? N : 0]; 
+                    }
                 }
             }
+
+            // 狀態顏色變化
+            if (bossHP < 40) {
+                canvas.style.color = (Math.random() > 0.1) ? "var(--danger)" : "#fff";
+                wordDisplay.style.color = "var(--danger)";
+            } else if (bossHP < 70) {
+                canvas.style.color = "#ffaa00";
+            } else {
+                canvas.style.color = "var(--neon)";
+            }
+
             canvas.innerText = b.join("");
         }
 
@@ -118,63 +152,76 @@
             if (e.key === 'Enter' && !isDead) {
                 const ans = inputField.value.trim().toLowerCase();
                 if (ans === quizData[currentIdx].a) {
-                    bossHP -= 10; missCount = 0;
-                    systemMsg.innerText = "CRITICAL HIT!";
-                    nextQuestion();
+                    playerAttack();
                 } else {
-                    playerHP -= 5; missCount++;
-                    systemMsg.innerText = "BREACH DETECTED!";
-                    canvas.classList.add('glitch-shake');
-                    setTimeout(() => canvas.classList.remove('glitch-shake'), 300);
-                    if (missCount >= 5) triggerUltimate();
-                    else if (playerHP <= 0) finishGame("CONNECTION LOST");
+                    bossAttack();
                 }
                 updateUI();
                 inputField.value = "";
             }
         });
 
+        // 我們攻擊敵人的特效
+        function playerAttack() {
+            bossHP = Math.max(0, bossHP - 10);
+            missCount = 0;
+            
+            // 成功打擊特效：核心脈衝爆炸
+            torusScale = 80; // 瞬間擴大
+            wordDisplay.classList.add('attack-flash');
+            canvas.style.color = "#fff";
+            
+            setTimeout(() => {
+                torusScale = 45; // 回復原狀
+                wordDisplay.classList.remove('attack-flash');
+                if (bossHP <= 0) finish(true);
+                else nextQuestion();
+            }, 200);
+        }
+
+        // 敵人攻擊我們的特效
+        function bossAttack() {
+            playerHP = Math.max(0, playerHP - 5);
+            missCount++;
+            
+            // 受傷特效：紅閃 + 鏡頭震動
+            overlay.style.opacity = "0.8";
+            overlay.style.background = "var(--danger)";
+            gameView.classList.add('hit-shake');
+            
+            setTimeout(() => {
+                overlay.style.opacity = "0";
+                gameView.classList.remove('hit-shake');
+                if (missCount >= 5 || playerHP <= 0) finish(false);
+            }, 300);
+        }
+
         function nextQuestion() {
-            if (quizData.length === 0) return;
             currentIdx = Math.floor(Math.random() * quizData.length);
             const item = quizData[currentIdx];
-            
             wordDisplay.innerText = item.q;
             chineseDisplay.innerText = item.qCH ? `(${item.qCH})` : "";
             
-            // 生成頭尾提示
             const ans = item.a;
-            if(ans.length <= 2) {
-                hintDisplay.innerText = ans[0] + " _";
-            } else {
-                let hintStr = ans[0] + " ";
-                for(let i=1; i<ans.length-1; i++) hintStr += "_ ";
-                hintStr += ans[ans.length-1];
-                hintDisplay.innerText = hintStr;
-            }
+            hintDisplay.innerText = ans[0] + " " + "_ ".repeat(ans.length - 2) + ans[ans.length-1];
         }
 
         function updateUI() {
             playerHpBar.style.width = playerHP + "%";
             bossHpBar.style.width = bossHP + "%";
-            missText.innerText = missCount;
+            if (playerHP < 30) playerHpBar.style.background = "red";
         }
 
-        function triggerUltimate() {
+        function finish(victory) {
             isDead = true;
-            let f = 0;
-            const ult = setInterval(() => {
-                let r = "";
-                for(let i=0; i<1000; i++) r += String.fromCharCode(33 + Math.random()*94);
-                canvas.innerText = r;
-                canvas.style.color = (f % 2) ? "white" : "red";
-                if (++f > 25) { clearInterval(ult); finishGame("CORE MELTDOWN"); }
-            }, 80);
-        }
-
-        function finishGame(msg) {
-            isDead = true;
-            document.body.innerHTML = `<div style="text-align:center; padding-top:25vh;"><h1>${msg}</h1><button onclick="location.reload()">REBOOT</button></div>`;
+            document.body.innerHTML = `
+                <div style="text-align:center; padding-top:30vh; background:#000; width:100%; height:100vh;">
+                    <h1 style="color:${victory?'var(--neon)':'red'}; font-size:4rem; text-shadow: 0 0 20px;">
+                        ${victory ? 'SYSTEM RESTORED' : 'CONNECTION LOST'}
+                    </h1>
+                    <p style="letter-spacing:5px;">${victory ? '核心威脅已解除' : '偵測到終端崩潰'}</p>
+                    <button onclick="location.reload()" style="padding:15px 40px; border:1px solid var(--neon); background:none; color:var(--neon); cursor:pointer; font-family:inherit; font-size:1.5rem; margin-top:20px;">REBOOT</button>
+                </div>`;
         }
 
         fetchQuiz();
