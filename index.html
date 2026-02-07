@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SIVS Final Boss Battle v3.0</title>
+    <title>SIVS Final Battle: Disintegration</title>
     <style>
-        :root { --neon: #00ff41; --danger: #ff0044; --bg: #050505; --warn: #ffcc00; }
+        :root { --neon: #00ff41; --danger: #ff0044; --bg: #050505; --white: #ffffff; }
         * { box-sizing: border-box; touch-action: manipulation; }
         body { background: var(--bg); color: var(--neon); font-family: 'Share Tech Mono', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
         
-        #ui-top { width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 50; position: absolute; top: 0; left: 0; }
+        #ui-top { width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 50; position: absolute; top: 0; left: 0; pointer-events: none; }
         .hp-container { width: 45%; }
-        .hp-bar { width: 100%; height: 8px; border: 1px solid #333; background: #111; position: relative; border-radius: 4px; overflow: hidden; }
+        .hp-bar { width: 100%; height: 8px; border: 1px solid #333; background: #111; border-radius: 4px; overflow: hidden; }
         #player-hp-inner { width: 100%; height: 100%; background: var(--neon); transition: width 0.3s; box-shadow: 0 0 10px var(--neon); }
         #boss-hp-inner { width: 100%; height: 100%; background: var(--danger); transition: width 0.5s; box-shadow: 0 0 10px var(--danger); }
 
-        /* 遊戲主體：全屏 Canvas */
         #game-view { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         #ascii-canvas { 
             font-family: 'Courier New', monospace; 
@@ -23,38 +22,35 @@
             z-index: 1; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
             overflow: hidden;
-        }
-
-        /* 集氣光暈層 */
-        #charge-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 0;
-            background: radial-gradient(circle, rgba(255,0,0,0) 60%, rgba(255,0,0,0.8) 100%);
-            opacity: 0; transition: opacity 0.3s;
+            /* 移除原本的 transition 以便實現高頻震動 */
         }
 
         /* 題目顯示 */
-        #quiz-box { position: absolute; top: 40%; text-align: center; z-index: 60; pointer-events: none; width: 100%; transform: translateY(-50%); }
-        #target-word { font-size: 3rem; font-weight: bold; text-shadow: 0 0 15px currentColor; margin: 0; transition: transform 0.2s, color 0.2s; }
+        #quiz-box { position: absolute; top: 40%; text-align: center; z-index: 60; pointer-events: none; width: 100%; transform: translateY(-50%); transition: opacity 0.5s; }
+        #target-word { font-size: 3rem; font-weight: bold; text-shadow: 0 0 15px currentColor; margin: 0; transition: transform 0.2s; }
         #chinese-hint { font-size: 1.2rem; color: #ccc; margin: 5px 0; background: rgba(0,0,0,0.8); padding: 2px 8px; display: inline-block; border-radius: 4px; }
         #hint-box { font-size: 1.5rem; letter-spacing: 6px; color: #ffff00; font-weight: bold; text-shadow: 0 0 5px #000; margin-top: 5px; }
 
         /* 輸入區域 */
-        #input-area { position: absolute; bottom: 0; width: 100%; padding: 20px; background: rgba(0,0,0,0.9); z-index: 70; border-top: 1px solid #333; }
+        #input-area { position: absolute; bottom: 0; width: 100%; padding: 20px; background: rgba(0,0,0,0.9); z-index: 70; border-top: 1px solid #333; transition: opacity 0.5s; }
         #user-input { background: transparent; border: none; border-bottom: 2px solid var(--neon); color: #fff; font-size: 1.8rem; text-align: center; outline: none; width: 100%; font-family: inherit; }
         #status-bar { display: flex; justify-content: space-between; font-size: 0.8rem; color: #666; margin-top: 10px; }
 
-        /* 特效動畫 */
-        .shake-light { animation: shake 0.5s infinite; }
-        .shake-heavy { animation: shake 0.1s infinite; }
-        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -1px); } 100% { transform: translate(0, 0); } }
-        .attack-pulse { animation: pulse 0.2s; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.3); color: #fff; } 100% { transform: scale(1); } }
+        /* 勝利畫面 */
+        #victory-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 2s;
+        }
+        #victory-screen.visible { opacity: 1; pointer-events: auto; }
+        .neon-btn { padding: 15px 40px; border: 1px solid var(--neon); color: var(--neon); background: none; font-size: 1.5rem; cursor: pointer; margin-top: 20px; font-family: inherit; }
+        
+        /* 失敗畫面 */
+        .fail-text { color: red; font-size: 4rem; text-shadow: 0 0 20px red; }
     </style>
 </head>
 <body>
-
-    <div id="charge-overlay"></div>
 
     <div id="ui-top">
         <div class="hp-container"><div class="hp-bar"><div id="player-hp-inner"></div></div></div>
@@ -68,6 +64,12 @@
             <div id="hint-box"></div>
         </div>
         <pre id="ascii-canvas"></pre>
+    </div>
+
+    <div id="victory-screen">
+        <h1 style="font-size: 4rem; text-shadow: 0 0 30px var(--neon);">SUCCESS</h1>
+        <p>CORE STABILIZED</p>
+        <button class="neon-btn" onclick="location.reload()">REBOOT SYSTEM</button>
     </div>
 
     <div id="input-area">
@@ -86,29 +88,30 @@
         const wordDisplay = document.getElementById('target-word');
         const chineseDisplay = document.getElementById('chinese-hint');
         const hintDisplay = document.getElementById('hint-box');
-        const chargeOverlay = document.getElementById('charge-overlay');
-        const strikeText = document.getElementById('strike-cnt');
+        const victoryScreen = document.getElementById('victory-screen');
         const sysMsg = document.getElementById('sys-msg');
-        const gameView = document.getElementById('game-view');
+        const quizBox = document.getElementById('quiz-box');
+        const inputArea = document.getElementById('input-area');
 
-        let playerHP = 100, bossHP = 100, missCount = 0, A = 0, B = 0, isDead = false;
+        let playerHP = 100, bossHP = 100, missCount = 0, A = 0, B = 0;
+        let isDead = false; // 玩家掛了
+        let isBossDying = false; // Boss 正在崩潰中
+        let explosionFactor = 0; // 崩潰擴散係數
+        
+        // 受傷特效變數
+        let hitEndTime = 0; // 受傷狀態結束時間
+        
         let quizData = [];
         let currentIdx = 0;
-        let torusScaleBase = 30; // 基礎大小
-        let torusScale = 30; // 當前大小 (用於動畫)
-
-        // 螢幕適配參數
         let cols = 80, rows = 40;
+        let torusScaleBase = 30;
 
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNmCwd6XsS61vQlsYo_Un3pTO5KRDDRwgE8Z1t6F58wI6GI44TCXvAbUxdywL65Fy3GX8BzRpTuZFU/pub?gid=0&single=true&output=csv';
 
-        // 初始化螢幕尺寸
         function resize() {
-            // 根據螢幕寬高動態計算字元數，防止切邊
             cols = Math.floor(window.innerWidth / 7); 
             rows = Math.floor(window.innerHeight / 12);
-            torusScaleBase = Math.min(cols, rows) * 0.6; // 根據螢幕比例決定大小
-            torusScale = torusScaleBase;
+            torusScaleBase = Math.min(cols, rows) * 0.6; 
         }
         window.addEventListener('resize', resize);
         resize();
@@ -127,73 +130,113 @@
         }
 
         function renderTorus() {
-            if (isDead) return;
             let b = [], z = [];
-            // 清空緩衝區
             for(let k=0; k<cols*rows; k++) { b[k] = " "; z[k] = 0; }
 
-            // 轉速與抖動邏輯
-            let speed = 0.05 + (100 - bossHP) * 0.005 + (missCount * 0.02); // 錯誤越多轉越快
+            // 1. 狀態判斷
+            const now = Date.now();
+            const isHitState = (now < hitEndTime); // 是否處於受傷震動期
+            const isLowHP = (bossHP < 40 && !isBossDying); // 是否處於低血量 Glitch 期
+
+            // 2. 參數計算
+            let speed = 0.05 + (100 - bossHP) * 0.005;
+            if (isBossDying) speed = 0.2; // 崩潰時轉速加快
             A += speed; B += speed * 0.5;
 
-            // 集氣抖動 (Jitter)
-            let jitterX = (missCount >= 3) ? (Math.random()-0.5) * missCount : 0;
-            let jitterY = (missCount >= 3) ? (Math.random()-0.5) * missCount : 0;
+            // 3. 震動與偏移 (Shake & Jitter)
+            let shakeX = 0, shakeY = 0;
+            if (isHitState) {
+                // 受傷時劇烈震動
+                shakeX = (Math.random() - 0.5) * 6; // 震幅大
+                shakeY = (Math.random() - 0.5) * 6;
+            } else if (isLowHP) {
+                // 低血量時偶爾微幅抖動
+                if(Math.random() > 0.8) {
+                    shakeX = (Math.random() - 0.5) * 2;
+                }
+            }
+
+            // 4. 崩潰擴散 (Disintegration)
+            if (isBossDying) {
+                explosionFactor += 0.05; // 每一幀都讓粒子擴散更遠
+            }
 
             let cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
 
+            // 5. 渲染迴圈
             for (let j = 0; j < 6.28; j += 0.07) {
                 let ct = Math.cos(j), st = Math.sin(j);
-                for (let i = 0; i < 6.28; i += 0.03) { // 降低密度以提升效能
+                for (let i = 0; i < 6.28; i += 0.03) {
                     let sp = Math.sin(i), cp = Math.cos(i);
                     let h = ct + 2, D = 1 / (sp * h * sA + st * cA + 5), t = sp * h * cA - st * sA;
                     
-                    // 座標映射 (加入 Jitter)
-                    let x = Math.floor((cols/2) + (torusScale + jitterX) * D * (cp * h * cB - t * sB));
-                    let y = Math.floor((rows/2) + (torusScale/2 + jitterY) * D * (cp * h * sB + t * cB));
+                    // 核心座標計算
+                    let baseX = (torusScaleBase) * D * (cp * h * cB - t * sB);
+                    let baseY = (torusScaleBase/2) * D * (cp * h * sB + t * cB);
+
+                    // 應用崩潰擴散：讓 x, y 隨著 explosionFactor 乘數變大
+                    if (isBossDying) {
+                        baseX *= (1 + explosionFactor * (Math.random()*0.5 + 0.5)); // 加入隨機噪聲讓散開更自然
+                        baseY *= (1 + explosionFactor * (Math.random()*0.5 + 0.5));
+                    }
+
+                    // 應用震動
+                    let x = Math.floor((cols/2) + baseX + shakeX);
+                    let y = Math.floor((rows/2) + baseY + shakeY);
                     
+                    // 低血量 Glitch：隨機水平撕裂 (Slice Glitch)
+                    if (isLowHP && Math.random() > 0.95) {
+                        x += Math.floor((Math.random()-0.5) * 10);
+                    }
+
                     let o = x + cols * y;
                     let N = Math.floor(8 * ((st * sA - sp * ct * cA) * cB - sp * ct * sA - st * cA - cp * ct * sB));
                     
                     if (y < rows && y >= 0 && x >= 0 && x < cols && D > z[o]) { 
                         z[o] = D; 
-                        b[o] = ".,-~:;=!*#$@"[N > 0 ? N : 0]; 
+                        // 受傷時隨機亂碼 (Glitch Char)
+                        let char = ".,-~:;=!*#$@"[N > 0 ? N : 0];
+                        if (isHitState && Math.random() > 0.5) {
+                            char = String.fromCharCode(33 + Math.random()*60); // 隨機符號
+                        }
+                        b[o] = char;
                     }
                 }
             }
 
-            // 將陣列轉為字串並插入換行符
+            // 6. 輸出
+            canvas.innerText = "";
             let output = "";
             for(let i=0; i<rows; i++) {
                 output += b.slice(i*cols, (i+1)*cols).join("") + "\n";
             }
             canvas.innerText = output;
 
-            // 視覺狀態管理 (顏色與光暈)
-            updateVisualState();
-        }
+            // 7. 顏色控制
+            if (isHitState) {
+                canvas.style.color = "#fff"; // 受傷全白
+                canvas.style.textShadow = "0 0 10px #fff";
+            } else if (isBossDying) {
+                // 崩潰時顏色漸淡
+                let opacity = Math.max(0, 1 - explosionFactor * 0.1);
+                canvas.style.color = `rgba(0, 255, 65, ${opacity})`;
+                canvas.style.textShadow = "none";
+                
+                // 動畫結束檢查
+                if (opacity <= 0) showVictoryUI();
 
-        function updateVisualState() {
-            // 顏色與光暈邏輯
-            if (missCount >= 4) {
-                canvas.style.color = (Date.now() % 200 < 100) ? "#ff0000" : "#fff"; // 急速紅閃
-                wordDisplay.style.color = "#ff0000";
-                chargeOverlay.style.opacity = "0.8"; // 背景全紅
-                gameView.className = "shake-heavy"; // 劇烈震動
-            } else if (missCount >= 2) {
-                canvas.style.color = "#ffaa00"; // 警告橘
-                chargeOverlay.style.opacity = "0.4";
-                gameView.className = "shake-light";
+            } else if (isLowHP) {
+                // 低血量紅/橘閃爍
+                canvas.style.color = (Date.now() % 200 < 100) ? "var(--danger)" : "#ffaa00";
+                canvas.style.textShadow = "0 0 5px red";
             } else {
                 canvas.style.color = "var(--neon)";
-                wordDisplay.style.color = "var(--neon)";
-                chargeOverlay.style.opacity = "0";
-                gameView.className = "";
+                canvas.style.textShadow = "none";
             }
         }
 
         inputField.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !isDead) {
+            if (e.key === 'Enter' && !isDead && !isBossDying) {
                 const ans = inputField.value.trim().toLowerCase();
                 if (ans === quizData[currentIdx].a) {
                     playerAttack();
@@ -207,28 +250,50 @@
 
         function playerAttack() {
             bossHP = Math.max(0, bossHP - 10);
-            missCount = 0; // 重置集氣
+            missCount = 0;
             
-            // 成功打擊特效：核心擴張
-            torusScale = torusScaleBase * 1.5; 
-            wordDisplay.classList.add('attack-pulse');
+            // 觸發受傷特效 (2秒)
+            hitEndTime = Date.now() + 2000;
             
-            setTimeout(() => {
-                torusScale = torusScaleBase;
-                wordDisplay.classList.remove('attack-pulse');
-                if (bossHP <= 0) finish(true);
-                else nextQuestion();
-            }, 200);
+            // 檢查是否死亡
+            if (bossHP <= 0) {
+                startDisintegration();
+            } else {
+                // 延遲一點點換題，讓玩家看到打擊的一瞬間
+                setTimeout(nextQuestion, 200);
+            }
         }
 
         function bossAttack() {
             playerHP = Math.max(0, playerHP - 5);
             missCount++;
-            strikeText.innerText = `STRIKES: ${missCount}/5`;
+            sysMsg.innerText = "WARNING: CORE BREACH";
+            sysMsg.style.color = "red";
             
-            // 集氣警告
-            if (missCount >= 5 || playerHP <= 0) finish(false);
-            else sysMsg.innerText = `WARNING! CHARGE LEVEL ${missCount}`;
+            if (missCount >= 5 || playerHP <= 0) failGame();
+        }
+
+        function startDisintegration() {
+            isBossDying = true;
+            // 隱藏 UI，專注看動畫
+            quizBox.style.opacity = 0;
+            inputArea.style.opacity = 0;
+            sysMsg.innerText = "TARGET DESTROYED. DISINTEGRATING...";
+        }
+
+        function showVictoryUI() {
+            victoryScreen.classList.add('visible');
+            canvas.style.display = 'none'; // 停止渲染節省效能
+        }
+
+        function failGame() {
+            isDead = true;
+            document.body.innerHTML = `
+                <div style="text-align:center; padding-top:30vh; background:#000; width:100%; height:100vh;">
+                    <h1 class="fail-text">FAILURE</h1>
+                    <p style="color:red; letter-spacing:3px;">SYSTEM OVERLOAD</p>
+                    <button class="neon-btn" style="border-color:red; color:red;" onclick="location.reload()">RETRY</button>
+                </div>`;
         }
 
         function nextQuestion() {
@@ -236,7 +301,6 @@
             const item = quizData[currentIdx];
             wordDisplay.innerText = item.q;
             chineseDisplay.innerText = item.qCH ? item.qCH : "";
-            
             const ans = item.a;
             hintDisplay.innerText = ans[0] + " " + "_ ".repeat(ans.length - 2) + ans[ans.length-1];
         }
@@ -244,18 +308,6 @@
         function updateUI() {
             playerHpBar.style.width = playerHP + "%";
             bossHpBar.style.width = bossHP + "%";
-        }
-
-        function finish(victory) {
-            isDead = true;
-            document.body.innerHTML = `
-                <div style="text-align:center; padding-top:30vh; background:#000; width:100%; height:100vh;">
-                    <h1 style="color:${victory?'var(--neon)':'red'}; font-size:4rem;">
-                        ${victory ? 'VICTORY' : 'DESTROYED'}
-                    </h1>
-                    <p>${victory ? 'Core Stabilized' : 'Critical System Failure'}</p>
-                    <button onclick="location.reload()" style="padding:15px; border:1px solid #fff; background:none; color:#fff; font-size:1.5rem;">RETRY</button>
-                </div>`;
         }
 
         fetchQuiz();
