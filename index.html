@@ -3,18 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SIVS Final Battle: Disintegration</title>
+    <title>SIVS Final Boss: Learning Edition</title>
     <style>
-        :root { --neon: #00ff41; --danger: #ff0044; --bg: #050505; --white: #ffffff; }
+        :root { --neon: #00ff41; --danger: #ff0044; --bg: #050505; --white: #ffffff; --warn: #ffcc00; }
         * { box-sizing: border-box; touch-action: manipulation; }
         body { background: var(--bg); color: var(--neon); font-family: 'Share Tech Mono', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; height: 100vh; }
         
+        /* 啟動遮罩 */
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: opacity 0.5s;
+        }
+        .start-btn {
+            border: 2px solid var(--neon); color: var(--neon); padding: 20px 50px;
+            font-size: 2rem; background: rgba(0, 255, 65, 0.1);
+            animation: pulse 1s infinite; font-family: inherit;
+        }
+
+        /* UI 頂部 */
         #ui-top { width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 50; position: absolute; top: 0; left: 0; pointer-events: none; }
         .hp-container { width: 45%; }
         .hp-bar { width: 100%; height: 8px; border: 1px solid #333; background: #111; border-radius: 4px; overflow: hidden; }
         #player-hp-inner { width: 100%; height: 100%; background: var(--neon); transition: width 0.3s; box-shadow: 0 0 10px var(--neon); }
         #boss-hp-inner { width: 100%; height: 100%; background: var(--danger); transition: width 0.5s; box-shadow: 0 0 10px var(--danger); }
 
+        /* 遊戲視圖 */
         #game-view { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         #ascii-canvas { 
             font-family: 'Courier New', monospace; 
@@ -22,41 +37,94 @@
             z-index: 1; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
             overflow: hidden;
-            /* 移除原本的 transition 以便實現高頻震動 */
+        }
+
+        /* 視覺特效層 */
+        #impact-overlay { 
+            position: absolute; top:0; left:0; width:100%; height:100%; 
+            pointer-events:none; z-index: 20; opacity: 0; transition: opacity 0.1s; 
+            background: radial-gradient(circle, transparent 50%, var(--danger) 100%);
         }
 
         /* 題目顯示 */
-        #quiz-box { position: absolute; top: 40%; text-align: center; z-index: 60; pointer-events: none; width: 100%; transform: translateY(-50%); transition: opacity 0.5s; }
-        #target-word { font-size: 3rem; font-weight: bold; text-shadow: 0 0 15px currentColor; margin: 0; transition: transform 0.2s; }
+        #quiz-box { position: absolute; top: 35%; text-align: center; z-index: 60; pointer-events: none; width: 100%; transform: translateY(-50%); transition: opacity 0.3s; }
+        #target-word { font-size: 3rem; font-weight: bold; text-shadow: 0 0 15px currentColor; margin: 0; transition: transform 0.1s; }
         #chinese-hint { font-size: 1.2rem; color: #ccc; margin: 5px 0; background: rgba(0,0,0,0.8); padding: 2px 8px; display: inline-block; border-radius: 4px; }
         #hint-box { font-size: 1.5rem; letter-spacing: 6px; color: #ffff00; font-weight: bold; text-shadow: 0 0 5px #000; margin-top: 5px; }
 
-        /* 輸入區域 */
+        /* 回饋面板 (Feedback HUD) */
+        #feedback-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 80;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            backdrop-filter: blur(5px);
+        }
+        #feedback-overlay.visible { opacity: 1; pointer-events: auto; }
+        
+        .fb-card {
+            border: 2px solid #fff; padding: 30px; width: 90%; max-width: 500px;
+            text-align: center; background: #000;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            transform: scale(0.9); transition: transform 0.2s;
+        }
+        #feedback-overlay.visible .fb-card { transform: scale(1); }
+        
+        .fb-title { font-size: 2.5rem; margin-bottom: 20px; font-weight: bold; }
+        .fb-content { font-size: 1.2rem; line-height: 1.8; margin-bottom: 30px; text-align: left; padding-left: 10%; }
+        .fb-row { border-bottom: 1px dashed #333; padding: 5px 0; }
+        .fb-label { color: #888; font-size: 0.8rem; display: block; }
+        .fb-val { font-size: 1.4rem; color: #fff; }
+        .fb-cn { font-size: 1rem; color: #aaa; margin-left: 10px; }
+
+        /* 輸入與狀態 */
         #input-area { position: absolute; bottom: 0; width: 100%; padding: 20px; background: rgba(0,0,0,0.9); z-index: 70; border-top: 1px solid #333; transition: opacity 0.5s; }
         #user-input { background: transparent; border: none; border-bottom: 2px solid var(--neon); color: #fff; font-size: 1.8rem; text-align: center; outline: none; width: 100%; font-family: inherit; }
         #status-bar { display: flex; justify-content: space-between; font-size: 0.8rem; color: #666; margin-top: 10px; }
 
-        /* 勝利畫面 */
-        #victory-screen {
+        /* 結局畫面 */
+        #end-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none; transition: opacity 2s;
         }
-        #victory-screen.visible { opacity: 1; pointer-events: auto; }
-        .neon-btn { padding: 15px 40px; border: 1px solid var(--neon); color: var(--neon); background: none; font-size: 1.5rem; cursor: pointer; margin-top: 20px; font-family: inherit; }
+        #end-screen.visible { opacity: 1; pointer-events: auto; }
         
-        /* 失敗畫面 */
-        .fail-text { color: red; font-size: 4rem; text-shadow: 0 0 20px red; }
+        .neon-btn { padding: 15px 40px; border: 1px solid currentColor; background: none; font-size: 1.5rem; cursor: pointer; margin-top: 20px; font-family: inherit; transition: all 0.2s; }
+        .neon-btn:hover { background: rgba(255,255,255,0.1); }
+
+        /* 動畫 */
+        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; text-shadow: 0 0 20px var(--neon); } 100% { opacity: 0.8; } }
+        .shake-heavy { animation: shake 0.3s infinite; }
+        .hit-shock { animation: shake 0.4s; }
+        @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(0, 0); } }
+        .attack-flash { transform: scale(1.4); color: #fff !important; text-shadow: 0 0 30px #fff; }
+
+        /* 回饋樣式 */
+        .fb-correct { color: var(--neon); border-color: var(--neon); box-shadow: 0 0 20px var(--neon); }
+        .fb-wrong { color: var(--danger); border-color: var(--danger); box-shadow: 0 0 20px var(--danger); }
+        .retry-tag { display: inline-block; background: var(--danger); color: #000; font-size: 0.7rem; padding: 2px 5px; border-radius: 3px; margin-left: 10px; vertical-align: middle; }
+
     </style>
 </head>
 <body>
 
+    <!-- 啟動層 -->
+    <div id="start-screen" onclick="initGame()">
+        <div class="start-btn">INITIALIZE SYSTEM</div>
+        <div style="margin-top:20px; color:#666; font-size: 0.8rem;">點擊螢幕啟動核心同步</div>
+    </div>
+
+    <div id="impact-overlay"></div>
+
+    <!-- UI -->
     <div id="ui-top">
         <div class="hp-container"><div class="hp-bar"><div id="player-hp-inner"></div></div></div>
         <div class="hp-container"><div class="hp-bar"><div id="boss-hp-inner"></div></div></div>
     </div>
 
+    <!-- 遊戲畫面 -->
     <div id="game-view">
         <div id="quiz-box">
             <h2 id="target-word">LOADING...</h2>
@@ -66,21 +134,69 @@
         <pre id="ascii-canvas"></pre>
     </div>
 
-    <div id="victory-screen">
-        <h1 style="font-size: 4rem; text-shadow: 0 0 30px var(--neon);">SUCCESS</h1>
-        <p>CORE STABILIZED</p>
-        <button class="neon-btn" onclick="location.reload()">REBOOT SYSTEM</button>
+    <!-- 回饋面板 (新增) -->
+    <div id="feedback-overlay">
+        <div id="fb-card" class="fb-card">
+            <div id="fb-title" class="fb-title">CORRECT</div>
+            <div class="fb-content">
+                <div class="fb-row">
+                    <span class="fb-label">QUESTION</span>
+                    <span id="fb-q-en" class="fb-val">INCREASE</span>
+                    <span id="fb-q-cn" class="fb-cn">增加</span>
+                </div>
+                <div class="fb-row">
+                    <span class="fb-label">ANSWER</span>
+                    <span id="fb-a-en" class="fb-val">DECREASE</span>
+                    <span id="fb-a-cn" class="fb-cn">減少</span>
+                </div>
+            </div>
+            <button id="fb-btn" class="neon-btn" onclick="dismissFeedback()">NEXT MISSION</button>
+        </div>
     </div>
 
+    <!-- 結局 -->
+    <div id="end-screen">
+        <h1 id="end-title" style="font-size: 4rem; text-shadow: 0 0 30px var(--neon);">SUCCESS</h1>
+        <p id="end-desc">CORE STABILIZED</p>
+        <button class="neon-btn" onclick="location.reload()" style="color:var(--neon); border-color:var(--neon);">REBOOT SYSTEM</button>
+    </div>
+
+    <!-- 輸入區 -->
     <div id="input-area">
         <input type="text" id="user-input" placeholder="DECODING..." autocomplete="off">
         <div id="status-bar">
             <span id="strike-cnt">STRIKES: 0/5</span>
-            <span id="sys-msg">SYSTEM ONLINE</span>
+            <span id="sys-msg">SYSTEM STANDBY</span>
         </div>
     </div>
 
     <script>
+        // --- 音效管理系統 ---
+        const AudioSys = {
+            bgm: new Audio('https://cdn.pixabay.com/download/audio/2023/04/02/audio_679490c6e4.mp3?filename=saturn-3-music-dark-dub-techno-somewhere-we-got-lost-no-copyright-music-144827.mp3'),
+            shot: new Audio('https://cdn.pixabay.com/download/audio/2021/08/09/audio_b7257b07a6.mp3?filename=freesound_community-gun-shot-1-7069.mp3'),
+            glitch: new Audio('https://cdn.pixabay.com/download/audio/2024/01/14/audio_ccf1c2fb54.mp3?filename=shut_up_ghost-glitch-sound-185884.mp3'),
+            crumble: new Audio('https://cdn.pixabay.com/download/audio/2024/04/28/audio_f8ac9790b1.mp3?filename=floraphonic-rocks-and-gravel-slide-4-204995.mp3'),
+            type: new Audio('https://cdn.pixabay.com/download/audio/2025/01/25/audio_33947eea08.mp3?filename=ncprime-keyboard-typing-one-short-1-292590.mp3'),
+            boot: new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_06953943ca.mp3?filename=freesound_community-reactos-boot-85864.mp3'),
+            confirm: new Audio('https://cdn.pixabay.com/download/audio/2022/03/24/audio_542fc2b610.mp3?filename=freesound_community-radio-103737.mp3'),
+
+            init() {
+                this.bgm.loop = true; this.bgm.volume = 0.4; 
+                this.shot.volume = 0.8; this.glitch.volume = 0.8;
+                this.crumble.volume = 1.0; this.type.volume = 0.6;
+                this.boot.volume = 0.6; this.confirm.volume = 0.5;
+            },
+            play(name) { if(this[name]) { this[name].currentTime = 0; this[name].play().catch(()=>{}); } },
+            stopBGM() {
+                let fade = setInterval(() => {
+                    if(this.bgm.volume > 0.05) this.bgm.volume -= 0.05;
+                    else { clearInterval(fade); this.bgm.pause(); }
+                }, 100);
+            }
+        };
+
+        // --- 變數宣告 ---
         const canvas = document.getElementById('ascii-canvas');
         const playerHpBar = document.getElementById('player-hp-inner');
         const bossHpBar = document.getElementById('boss-hp-inner');
@@ -88,30 +204,57 @@
         const wordDisplay = document.getElementById('target-word');
         const chineseDisplay = document.getElementById('chinese-hint');
         const hintDisplay = document.getElementById('hint-box');
-        const victoryScreen = document.getElementById('victory-screen');
+        const overlay = document.getElementById('impact-overlay');
+        const endScreen = document.getElementById('end-screen');
+        const gameView = document.getElementById('game-view');
+        const strikeText = document.getElementById('strike-cnt');
         const sysMsg = document.getElementById('sys-msg');
-        const quizBox = document.getElementById('quiz-box');
-        const inputArea = document.getElementById('input-area');
-
-        let playerHP = 100, bossHP = 100, missCount = 0, A = 0, B = 0;
-        let isDead = false; // 玩家掛了
-        let isBossDying = false; // Boss 正在崩潰中
-        let explosionFactor = 0; // 崩潰擴散係數
+        const startScreen = document.getElementById('start-screen');
         
-        // 受傷特效變數
-        let hitEndTime = 0; // 受傷狀態結束時間
+        // 回饋面板元件
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const fbCard = document.getElementById('fb-card');
+        const fbTitle = document.getElementById('fb-title');
+        const fbQEn = document.getElementById('fb-q-en');
+        const fbQCn = document.getElementById('fb-q-cn');
+        const fbAEn = document.getElementById('fb-a-en');
+        const fbACn = document.getElementById('fb-a-cn');
+        const fbBtn = document.getElementById('fb-btn');
+
+        let playerHP = 100, bossHP = 100, missCount = 0;
+        let angleA = 0, angleB = 0;
+        let isGameActive = false;
+        let isPaused = false; // 用於回饋視窗暫停
+        let isBossDying = false;
+        let explosionFactor = 0;
+        let hitEndTime = 0; 
         
         let quizData = [];
-        let currentIdx = 0;
+        let currentItem = null;
+        let retryQueue = []; // 錯題重練佇列: [{item: object, dueIn: int}]
         let cols = 80, rows = 40;
         let torusScaleBase = 30;
 
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQNmCwd6XsS61vQlsYo_Un3pTO5KRDDRwgE8Z1t6F58wI6GI44TCXvAbUxdywL65Fy3GX8BzRpTuZFU/pub?gid=0&single=true&output=csv';
 
+        // --- 初始化 ---
+        function initGame() {
+            AudioSys.init();
+            AudioSys.play('boot');
+            startScreen.style.opacity = 0;
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                AudioSys.bgm.play();
+                isGameActive = true;
+                sysMsg.innerText = "SYSTEM ONLINE";
+                inputField.focus();
+            }, 1000); 
+        }
+
         function resize() {
             cols = Math.floor(window.innerWidth / 7); 
             rows = Math.floor(window.innerHeight / 12);
-            torusScaleBase = Math.min(cols, rows) * 0.6; 
+            torusScaleBase = Math.min(cols, rows) * 0.65; 
         }
         window.addEventListener('resize', resize);
         resize();
@@ -123,122 +266,104 @@
                 const lines = csvText.split('\n').slice(1); 
                 quizData = lines.map(line => {
                     const col = line.split(',');
-                    return { q: col[0]?.trim().toLowerCase(), a: col[1]?.trim().toLowerCase(), qCH: col[2]?.trim() };
+                    // 確保讀取前四欄：Q, A, Q_CN, A_CN
+                    return { 
+                        q: col[0]?.trim().toLowerCase(), 
+                        a: col[1]?.trim().toLowerCase(), 
+                        qCH: col[2]?.trim(),
+                        aCH: col[3]?.trim() // 新增答案中文
+                    };
                 }).filter(i => i.q && i.a);
                 nextQuestion();
-            } catch (e) { sysMsg.innerText = "OFFLINE MODE"; }
+            } catch (e) { sysMsg.innerText = "OFFLINE DATA LOADED"; }
         }
 
+        // --- 3D 渲染 ---
         function renderTorus() {
             let b = [], z = [];
             for(let k=0; k<cols*rows; k++) { b[k] = " "; z[k] = 0; }
-
-            // 1. 狀態判斷
             const now = Date.now();
-            const isHitState = (now < hitEndTime); // 是否處於受傷震動期
-            const isLowHP = (bossHP < 40 && !isBossDying); // 是否處於低血量 Glitch 期
+            const isHitState = (now < hitEndTime); 
+            const isLowHP = (bossHP < 40 && !isBossDying); 
 
-            // 2. 參數計算
             let speed = 0.05 + (100 - bossHP) * 0.005;
-            if (isBossDying) speed = 0.2; // 崩潰時轉速加快
-            A += speed; B += speed * 0.5;
+            if (isBossDying) speed = 0.2; 
+            if (isPaused) speed = 0.02; // 暫停時轉慢一點
 
-            // 3. 震動與偏移 (Shake & Jitter)
+            angleA += speed; angleB += speed * 0.5;
+
             let shakeX = 0, shakeY = 0;
-            if (isHitState) {
-                // 受傷時劇烈震動
-                shakeX = (Math.random() - 0.5) * 6; // 震幅大
-                shakeY = (Math.random() - 0.5) * 6;
-            } else if (isLowHP) {
-                // 低血量時偶爾微幅抖動
-                if(Math.random() > 0.8) {
-                    shakeX = (Math.random() - 0.5) * 2;
-                }
+            if (!isPaused) {
+                if (isHitState) { shakeX = (Math.random()-0.5)*8; shakeY = (Math.random()-0.5)*8; }
+                else if (isLowHP && Math.random()>0.8) { shakeX = (Math.random()-0.5)*3; }
             }
+            if (isBossDying) explosionFactor += 0.06;
 
-            // 4. 崩潰擴散 (Disintegration)
-            if (isBossDying) {
-                explosionFactor += 0.05; // 每一幀都讓粒子擴散更遠
-            }
+            let cA = Math.cos(angleA), sA = Math.sin(angleA), cB = Math.cos(angleB), sB = Math.sin(angleB);
 
-            let cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
-
-            // 5. 渲染迴圈
             for (let j = 0; j < 6.28; j += 0.07) {
                 let ct = Math.cos(j), st = Math.sin(j);
                 for (let i = 0; i < 6.28; i += 0.03) {
                     let sp = Math.sin(i), cp = Math.cos(i);
                     let h = ct + 2, D = 1 / (sp * h * sA + st * cA + 5), t = sp * h * cA - st * sA;
                     
-                    // 核心座標計算
                     let baseX = (torusScaleBase) * D * (cp * h * cB - t * sB);
                     let baseY = (torusScaleBase/2) * D * (cp * h * sB + t * cB);
 
-                    // 應用崩潰擴散：讓 x, y 隨著 explosionFactor 乘數變大
                     if (isBossDying) {
-                        baseX *= (1 + explosionFactor * (Math.random()*0.5 + 0.5)); // 加入隨機噪聲讓散開更自然
-                        baseY *= (1 + explosionFactor * (Math.random()*0.5 + 0.5));
+                        baseX *= (1 + explosionFactor * (0.5 + Math.random()));
+                        baseY *= (1 + explosionFactor * (0.5 + Math.random()));
                     }
 
-                    // 應用震動
                     let x = Math.floor((cols/2) + baseX + shakeX);
                     let y = Math.floor((rows/2) + baseY + shakeY);
                     
-                    // 低血量 Glitch：隨機水平撕裂 (Slice Glitch)
-                    if (isLowHP && Math.random() > 0.95) {
-                        x += Math.floor((Math.random()-0.5) * 10);
-                    }
+                    if (!isPaused && isLowHP && Math.random() > 0.95) x += Math.floor((Math.random()-0.5)*15);
 
                     let o = x + cols * y;
                     let N = Math.floor(8 * ((st * sA - sp * ct * cA) * cB - sp * ct * sA - st * cA - cp * ct * sB));
                     
                     if (y < rows && y >= 0 && x >= 0 && x < cols && D > z[o]) { 
                         z[o] = D; 
-                        // 受傷時隨機亂碼 (Glitch Char)
                         let char = ".,-~:;=!*#$@"[N > 0 ? N : 0];
-                        if (isHitState && Math.random() > 0.5) {
-                            char = String.fromCharCode(33 + Math.random()*60); // 隨機符號
-                        }
+                        if (isHitState && Math.random() > 0.4) char = String.fromCharCode(33+Math.random()*20);
                         b[o] = char;
                     }
                 }
             }
 
-            // 6. 輸出
             canvas.innerText = "";
             let output = "";
-            for(let i=0; i<rows; i++) {
-                output += b.slice(i*cols, (i+1)*cols).join("") + "\n";
-            }
+            for(let i=0; i<rows; i++) output += b.slice(i*cols, (i+1)*cols).join("") + "\n";
             canvas.innerText = output;
 
-            // 7. 顏色控制
             if (isHitState) {
-                canvas.style.color = "#fff"; // 受傷全白
-                canvas.style.textShadow = "0 0 10px #fff";
+                canvas.style.color = "#fff"; canvas.style.textShadow = "0 0 15px #fff";
             } else if (isBossDying) {
-                // 崩潰時顏色漸淡
                 let opacity = Math.max(0, 1 - explosionFactor * 0.1);
-                canvas.style.color = `rgba(0, 255, 65, ${opacity})`;
-                canvas.style.textShadow = "none";
-                
-                // 動畫結束檢查
-                if (opacity <= 0) showVictoryUI();
-
+                canvas.style.color = `rgba(0, 255, 65, ${opacity})`; canvas.style.textShadow = "none";
+                if(opacity <= 0) endGame(true);
             } else if (isLowHP) {
-                // 低血量紅/橘閃爍
-                canvas.style.color = (Date.now() % 200 < 100) ? "var(--danger)" : "#ffaa00";
-                canvas.style.textShadow = "0 0 5px red";
+                canvas.style.color = (Date.now() % 150 < 75) ? "var(--danger)" : "#fff";
             } else {
-                canvas.style.color = "var(--neon)";
-                canvas.style.textShadow = "none";
+                canvas.style.color = "var(--neon)"; canvas.style.textShadow = "none";
             }
         }
 
+        // --- 互動邏輯 ---
         inputField.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !isDead && !isBossDying) {
+            // 如果在回饋畫面，按 Enter 等同按確認鈕
+            if (isPaused) {
+                if(e.key === 'Enter') dismissFeedback();
+                return;
+            }
+
+            if(!isGameActive) return;
+            AudioSys.play('type');
+
+            if (e.key === 'Enter') {
                 const ans = inputField.value.trim().toLowerCase();
-                if (ans === quizData[currentIdx].a) {
+                if (ans === currentItem.a) {
                     playerAttack();
                 } else {
                     bossAttack();
@@ -252,62 +377,156 @@
             bossHP = Math.max(0, bossHP - 10);
             missCount = 0;
             
-            // 觸發受傷特效 (2秒)
-            hitEndTime = Date.now() + 2000;
-            
-            // 檢查是否死亡
+            AudioSys.play('shot');
+            wordDisplay.classList.add('attack-flash');
+            setTimeout(() => wordDisplay.classList.remove('attack-flash'), 300);
+
             if (bossHP <= 0) {
                 startDisintegration();
             } else {
-                // 延遲一點點換題，讓玩家看到打擊的一瞬間
-                setTimeout(nextQuestion, 200);
+                // 顯示「正確」回饋面板
+                showFeedback(true);
             }
         }
 
         function bossAttack() {
             playerHP = Math.max(0, playerHP - 5);
             missCount++;
-            sysMsg.innerText = "WARNING: CORE BREACH";
-            sysMsg.style.color = "red";
             
-            if (missCount >= 5 || playerHP <= 0) failGame();
+            AudioSys.play('glitch');
+            overlay.style.opacity = 0.8;
+            gameView.classList.add('hit-shock');
+            setTimeout(() => {
+                overlay.style.opacity = 0;
+                gameView.classList.remove('hit-shock');
+            }, 400);
+
+            strikeText.innerText = `STRIKES: ${missCount}/5`;
+            
+            if (missCount >= 5 || playerHP <= 0) {
+                endGame(false);
+            } else {
+                // 錯題加入重練佇列：3回合後重現
+                retryQueue.push({ item: currentItem, dueIn: 3 });
+                // 顯示「錯誤」回饋面板
+                showFeedback(false);
+            }
+        }
+
+        function showFeedback(isCorrect) {
+            isPaused = true;
+            inputField.blur(); // 暫時移除焦點
+
+            // 設定面板內容
+            if (isCorrect) {
+                fbTitle.innerText = "CORRECT";
+                fbCard.className = "fb-card fb-correct";
+                fbBtn.innerText = "NEXT MISSION";
+                fbBtn.style.color = "var(--neon)";
+                fbBtn.style.borderColor = "var(--neon)";
+            } else {
+                fbTitle.innerText = "WRONG";
+                fbCard.className = "fb-card fb-wrong";
+                fbBtn.innerText = "ACKNOWLEDGED";
+                fbBtn.style.color = "var(--danger)";
+                fbBtn.style.borderColor = "var(--danger)";
+            }
+
+            // 填入中英文資料
+            fbQEn.innerText = currentItem.q.toUpperCase();
+            fbQCn.innerText = currentItem.qCH ? currentItem.qCH : "";
+            fbAEn.innerText = currentItem.a.toUpperCase();
+            fbACn.innerText = currentItem.aCH ? currentItem.aCH : "";
+
+            feedbackOverlay.classList.add('visible');
+        }
+
+        function dismissFeedback() {
+            AudioSys.play('confirm');
+            feedbackOverlay.classList.remove('visible');
+            isPaused = false;
+            
+            // 延遲一點點，讓面板消失動畫跑完
+            setTimeout(() => {
+                nextQuestion();
+                inputField.focus(); // 聚焦回輸入框
+            }, 200);
+        }
+
+        function nextQuestion() {
+            // 1. 處理重練佇列：所有待重練的倒數減一
+            retryQueue.forEach(r => r.dueIn--);
+
+            // 2. 檢查是否有該重練的題目 (dueIn <= 0)
+            const retryIdx = retryQueue.findIndex(r => r.dueIn <= 0);
+            
+            if (retryIdx !== -1) {
+                // 優先出錯題
+                currentItem = retryQueue[retryIdx].item;
+                // 取出後移除 (如果再錯會再被加入)
+                retryQueue.splice(retryIdx, 1);
+                
+                // 加個標記讓學生知道這是重練 (Optional)
+                sysMsg.innerText = "WARNING: RETRY PROTOCOL";
+                sysMsg.style.color = "var(--warn)";
+            } else {
+                // 隨機出新題
+                const idx = Math.floor(Math.random() * quizData.length);
+                currentItem = quizData[idx];
+                sysMsg.innerText = "SYSTEM NORMAL";
+                sysMsg.style.color = "#666";
+            }
+
+            wordDisplay.innerText = currentItem.q;
+            chineseDisplay.innerText = currentItem.qCH ? `(${currentItem.qCH})` : ""; // 題目中文
+            
+            const ans = currentItem.a;
+            hintDisplay.innerText = ans[0] + " " + "_ ".repeat(ans.length - 2) + ans[ans.length-1];
         }
 
         function startDisintegration() {
             isBossDying = true;
-            // 隱藏 UI，專注看動畫
-            quizBox.style.opacity = 0;
-            inputArea.style.opacity = 0;
-            sysMsg.innerText = "TARGET DESTROYED. DISINTEGRATING...";
-        }
-
-        function showVictoryUI() {
-            victoryScreen.classList.add('visible');
-            canvas.style.display = 'none'; // 停止渲染節省效能
-        }
-
-        function failGame() {
-            isDead = true;
-            document.body.innerHTML = `
-                <div style="text-align:center; padding-top:30vh; background:#000; width:100%; height:100vh;">
-                    <h1 class="fail-text">FAILURE</h1>
-                    <p style="color:red; letter-spacing:3px;">SYSTEM OVERLOAD</p>
-                    <button class="neon-btn" style="border-color:red; color:red;" onclick="location.reload()">RETRY</button>
-                </div>`;
-        }
-
-        function nextQuestion() {
-            currentIdx = Math.floor(Math.random() * quizData.length);
-            const item = quizData[currentIdx];
-            wordDisplay.innerText = item.q;
-            chineseDisplay.innerText = item.qCH ? item.qCH : "";
-            const ans = item.a;
-            hintDisplay.innerText = ans[0] + " " + "_ ".repeat(ans.length - 2) + ans[ans.length-1];
+            isGameActive = false;
+            AudioSys.stopBGM();
+            AudioSys.play('crumble'); 
+            setTimeout(() => AudioSys.play('glitch'), 1000); 
+            
+            document.getElementById('quiz-box').style.opacity = 0;
+            document.getElementById('input-area').style.opacity = 0;
+            feedbackOverlay.classList.remove('visible'); // 確保面板關閉
         }
 
         function updateUI() {
             playerHpBar.style.width = playerHP + "%";
             bossHpBar.style.width = bossHP + "%";
+            if(playerHP < 30) playerHpBar.style.background = "red";
+        }
+
+        function endGame(victory) {
+            isGameActive = false;
+            endScreen.classList.add('visible');
+            canvas.style.display = 'none';
+            
+            const title = document.getElementById('end-title');
+            const desc = document.getElementById('end-desc');
+            const btn = endScreen.querySelector('button');
+
+            if(victory) {
+                title.innerText = "SUCCESS";
+                title.style.color = "var(--neon)";
+                title.style.textShadow = "0 0 30px var(--neon)";
+                desc.innerText = "CORE STABILIZED";
+                btn.style.borderColor = "var(--neon)";
+                btn.style.color = "var(--neon)";
+            } else {
+                title.innerText = "FAILURE";
+                title.style.color = "var(--danger)";
+                title.style.textShadow = "0 0 30px var(--danger)";
+                desc.innerText = "SYSTEM OVERLOAD";
+                btn.style.borderColor = "var(--danger)";
+                btn.style.color = "var(--danger)";
+                AudioSys.play('glitch'); 
+            }
         }
 
         fetchQuiz();
